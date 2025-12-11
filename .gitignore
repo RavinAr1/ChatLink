@@ -1,0 +1,47 @@
+# -------------------
+# Maven / Java
+# -------------------
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+
+# -------------------
+# IDEs
+# -------------------
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+# Eclipse / STS
+.project
+.classpath
+.settings/
+.springBeans
+.apt_generated/
+.factorypath
+.sts4-cache/
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+# VS Code
+.vscode/
+
+# -------------------
+# Logs and temp files
+# -------------------
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# -------------------
+# Docker-related files
+# -------------------
+docker-compose.override.yml

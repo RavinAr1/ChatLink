@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Chat | ChatLink</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+    <link rel="stylesheet" href="/css/output.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+<div th:replace="fragments/navbar :: navbar"></div>
+
+<div id="chatContainer"
+     class="container mx-auto mt-10 flex gap-6"
+     th:data-userid="${user.id}">
+
+
+
+    <!-- Connections -->
+    <div class="w-1/3 bg-gray-800 p-4 rounded-lg shadow-lg">
+        <h4 class="text-xl font-bold mb-2">Connections</h4>
+        <ul id="connectionList" class="space-y-2">
+            <li th:each="conn : ${connections}"
+                th:id="'conn-' + ${conn.id}"
+                th:data-userid="${conn.id}"
+                th:data-fullname="${conn.fullName}"
+                onclick="selectUser(this)"
+                class="cursor-pointer p-2 rounded hover:bg-gray-700">
+                <span th:text="${conn.fullName}"></span>
+            </li>
+        </ul>
+    </div>
+
+
+
+    <!-- Chat Window -->
+    <div class="w-2/3 bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col">
+        <h4 id="chatWith" class="text-xl font-bold mb-2">
+            Select a user to start chatting
+        </h4>
+
+        <div id="chat-box"
+             class="flex-1 overflow-y-auto p-3 mb-3 bg-gray-900 rounded border border-gray-700">
+        </div>
+
+
+        <!-- Message + File Input -->
+        <div class="flex gap-2 items-center">
+            <input type="file" id="fileInput" class="text-sm text-gray-300">
+            <input type="text" id="messageInput" placeholder="Type message"
+                   class="flex-1 p-2 rounded bg-gray-700 text-gray-100 outline-none">
+
+            <button onclick="sendMessage()"
+                    class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">
+                Send
+            </button>
+
+            <button onclick="sendFile()"
+                    class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded">
+                Send File
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    let stompClient = null;
+    let selectedUserId = null;
+    let selectedUserName = '';
+    let loggedInUserId = parseInt(document.getElementById("chatContainer").dataset.userid);
+
+    function connect() {
+        const socket = new SockJS('/ws-chat');
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function () {
+
+            stompClient.subscribe('/topic/messages', function (output) {
+                const msg = JSON.parse(output.body);
+                if (!selectedUserId) return;
+                if ((msg.senderId === loggedInUserId && msg.receiverId === selectedUserId) ||
+                    (msg.senderId === selectedUserId && msg.receiverId === loggedInUserId)) {
+                    showMessage(msg);
+                }
+            });
+
+            stompClient.subscribe('/topic/files', function (output) {
+                const file = JSON.parse(output.body);
+                if (!selectedUserId) return;
+                if ((file.senderId === loggedInUserId && file.receiverId === selectedUserId) ||
+                    (file.senderId === selectedUserId && file.receiverId === loggedInUserId)) {
+                    showAttachment(file);
+                }
+            });
+        });
+    }
+
+
+    function selectUser(element) {
+        selectedUserId = parseInt(element.dataset.userid);
+        selectedUserName = element.dataset.fullname;
+
+        document.getElementById("chatWith").innerText = "Chatting with " + selectedUserName;
+        document.getElementById("chat-box").innerHTML = "";
+
+        fetch(`/api/chat/history?user1=${loggedInUserId}&user2=${selectedUserId}`)
+            .then(res => res.json())
+            .then(data => data.forEach(item => {
+                if (item.fileUrl) showAttachment(item);
+                else showMessage(item);
+            }));
+    }
+
+
+    function sendMessage() {
+        if (!selectedUserId) { alert("Select a user first!"); return; }
+        const content = document.getElementById('messageInput').value.trim();
+        if (!content) return;
+
+        const message = { senderId: loggedInUserId, receiverId: selectedUserId, content };
+        stompClient.send("/app/chat.send", {}, JSON.stringify(message));
+        document.getElementById('messageInput').value = '';
+    }
+
+
+    function sendFile() {
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+        if (!file) { alert("Select a file"); return; }
+
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("senderId", loggedInUserId);
+        formData.append("receiverId", selectedUserId);
+
+        fetch("/api/chat/upload", { method: "POST", body: formData })
+            .then(res => res.json())
+            .then(attachment => {
+                // Send via STOMP so both users see it immediately
+                stompClient.send("/app/chat.send-file", {}, JSON.stringify(attachment));
+            })
+            .catch(err => console.error(err));
+
+        fileInput.value = "";
+    }
+
+
+
+    function showMessage(msg) {
+        const chatBox = document.getElementById("chat-box");
+        const line = document.createElement("div");
+        line.classList.add("mb-2", "p-2", "rounded");
+
+        if (msg.senderId === loggedInUserId) {
+            line.classList.add("text-right", "bg-blue-600", "text-white");
+            line.innerHTML = `<strong>You:</strong> ${msg.content}`;
+            line.style.marginLeft = "30%";
+        } else {
+            line.classList.add("text-left", "bg-gray-700");
+            line.innerHTML = `<strong>${selectedUserName}:</strong> ${msg.content}`;
+            line.style.marginRight = "30%";
+        }
+
+        chatBox.appendChild(line);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+
+    function showAttachment(file) {
+        const chatBox = document.getElementById("chat-box");
+        const line = document.createElement("div");
+        line.classList.add("mb-2", "p-2", "rounded");
+
+        const link = `<a href="${file.fileUrl}" download class="underline text-blue-300">
+                    📎 ${file.fileName}
+                  </a>`;
+
+        if (file.senderId === loggedInUserId) {
+            line.classList.add("text-right", "bg-purple-600", "text-white");
+            line.innerHTML = `<strong>You:</strong> ${link}`;
+            line.style.marginLeft = "30%";
+        } else {
+            line.classList.add("text-left", "bg-gray-700");
+            line.innerHTML = `<strong>${selectedUserName}:</strong> ${link}`;
+            line.style.marginRight = "30%";
+        }
+
+        chatBox.appendChild(line);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    connect();
+</script>
+
+</body>
+</html>

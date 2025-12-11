@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Requests | ChatLink</title>
+    <link rel="stylesheet" href="/css/output.css">
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+<!-- Include Navbar -->
+<div th:replace="fragments/navbar :: navbar"></div>
+
+<div class="flex items-center justify-center p-6">
+    <div class="bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-2xl">
+        <h3 class="text-2xl font-bold mb-4">Pending Connection Requests</h3>
+
+
+        <table class="w-full text-left rounded bg-gray-700 overflow-hidden">
+            <thead class="bg-gray-900">
+            <tr>
+                <th class="px-4 py-2">Sender ID</th>
+                <th class="px-4 py-2">Actions</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            <tr th:each="req : ${requests}" class="border-b border-gray-600">
+                <td class="px-4 py-2" th:text="${req.senderId}"></td>
+
+                <td class="px-4 py-2 flex gap-2">
+
+
+                    <form action="/requests/accept" method="post">
+                        <input type="hidden" th:value="${req.id}" name="requestId">
+                        <button class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded">Accept</button>
+                    </form>
+
+
+
+                    <form action="/requests/reject" method="post">
+                        <input type="hidden" th:value="${req.id}" name="requestId">
+                        <button class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded">Reject</button>
+                    </form>
+
+
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+
+        <div class="mt-4 text-right">
+            <a href="/" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">
+                Go to Home
+            </a>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>
