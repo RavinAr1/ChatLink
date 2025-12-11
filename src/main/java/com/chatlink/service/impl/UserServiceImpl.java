@@ -9,6 +9,7 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeWriter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,6 +28,13 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private JavaMailSender mailSender;
+
+
+    @Value("${app.base-url}") // Base URL for email links
+    private String baseUrl;
+
+    @Value("${spring.mail.from}")
+    private String fromEmail;
 
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -100,34 +108,44 @@ public class UserServiceImpl implements UserService {
         return true;
     }
 
+
+
     // ----------------------------
     // Email sending methods
     // ----------------------------
+
+
     private void sendVerificationEmail(User user) {
-        String link = "http://localhost:8082/verify?token=" + user.getVerificationToken();
+        String link = baseUrl + "/verify?token=" + user.getVerificationToken();
         String body = "Hi " + user.getFullName() + ",\n\n" +
-                "Please verify your email by clicking the link below:\n" + link + "\n\nThanks,\nChatLink Team";
+                "Please verify your email by clicking the link below:\n" +
+                link + "\n\nThanks,\nChatLink Team";
 
         sendEmail(user.getEmail(), "ChatLink - Verify Your Email", body);
     }
 
     private void sendResetEmail(User user) {
-        String link = "http://localhost:8082/reset-password?token=" + user.getResetToken();
+        String link = baseUrl + "/reset-password?token=" + user.getResetToken();
         String body = "Hi " + user.getFullName() + ",\n\n" +
-                "Reset your password using the link below:\n" + link +
-                "\n\nThis link is valid for 15 minutes.\n\nChatLink Team";
+                "Reset your password using the link below:\n" +
+                link + "\n\nThis link is valid for 15 minutes.\n\nChatLink Team";
 
         sendEmail(user.getEmail(), "ChatLink - Reset Password", body);
     }
 
-    private void sendEmail(String toEmail, String subject, String body) {
+
+
+    private void sendEmail(String to, String subject, String body) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("your-email@gmail.com");
-        message.setTo(toEmail);
+        message.setTo(to);
         message.setSubject(subject);
         message.setText(body);
-        mailSender.send(message); // Send email
+        message.setFrom(fromEmail);
+        mailSender.send(message);
     }
+
+
+
 
     @Override
     public BufferedImage generateQRCode(String text, int width, int height) throws Exception {
