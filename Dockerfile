@@ -10,6 +10,9 @@ COPY .mvn .mvn
 COPY pom.xml .
 COPY src src
 
+# Make mvnw executable
+RUN chmod +x mvnw
+
 # Build Spring Boot app
 RUN ./mvnw package -DskipTests
 
@@ -17,7 +20,12 @@ RUN ./mvnw package -DskipTests
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
+# Copy built jar from build stage
 COPY --from=build /app/target/*.jar app.jar
+
+# Create uploads directory for attachments
+RUN mkdir -p /app/uploads
+VOLUME /app/uploads
 
 EXPOSE 8080
 
