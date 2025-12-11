@@ -25,7 +25,6 @@ COPY --from=build /app/target/*.jar app.jar
 
 # Create uploads directory for attachments
 RUN mkdir -p /app/uploads
-VOLUME /app/uploads
 
 EXPOSE 8080
 
