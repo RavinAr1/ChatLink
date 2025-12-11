@@ -26,12 +26,10 @@ Create a .env file or provide these variables when running locally or in Docker
   DB_USERNAME=<database_username>
   
   DB_PASSWORD=<database_password>
-  
-  MAIL_USERNAME=<gmail_username if using gmail smtp>
-  
-  MAIL_PASSWORD=<google_app_password if using gmail smtp>
-  
-  MAIL_FROM = <same as MAIL_USERNAME>
+
+  BREVO_API_KEY=<your Brevo API key> #or any other suitable email service API key
+
+  MAIL_FROM=<sender email address>
   
   APP_BASE_URL = <http://localhost:8082(for local testing)>
 

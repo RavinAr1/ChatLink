@@ -10,15 +10,15 @@ import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.awt.image.BufferedImage;
-import java.io.InputStream;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -26,21 +26,26 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private JavaMailSender mailSender;
-
-
-    @Value("${app.base-url}") // Base URL for email links
+    @Value("${app.base-url}")
     private String baseUrl;
 
-    @Value("${spring.mail.from}")
+    @Value("${email.api.key}")
+    private String brevoApiKey;
+
+    @Value("${email.from}")
     private String fromEmail;
+
+    private WebClient webClient = WebClient.builder()
+            .baseUrl("https://api.brevo.com/v3/smtp/email")
+            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .build();
 
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
     public User registerUser(User user) {
-        if (userRepository.existsByEmail(user.getEmail())) throw new RuntimeException("Email already registered");
+        if (userRepository.existsByEmail(user.getEmail()))
+            throw new RuntimeException("Email already registered");
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setUniqueCode(java.util.UUID.randomUUID().toString());
@@ -49,7 +54,7 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        sendVerificationEmail(savedUser); // Send verification email
+        sendVerificationEmail(savedUser);
         return savedUser;
     }
 
@@ -57,19 +62,21 @@ public class UserServiceImpl implements UserService {
     public User login(String email, String rawPassword) {
         User user = userRepository.findByEmail(email);
         if (user == null) throw new RuntimeException("User not found");
-        if (!passwordEncoder.matches(rawPassword, user.getPassword())) throw new RuntimeException("Incorrect password");
-        if (!user.isVerified()) throw new RuntimeException("Email not verified. Please check your email.");
+        if (!passwordEncoder.matches(rawPassword, user.getPassword()))
+            throw new RuntimeException("Incorrect password");
+        if (!user.isVerified())
+            throw new RuntimeException("Email not verified. Please check your email.");
         return user;
     }
 
     @Override
     public User getUserByUniqueCode(String code) {
-        return userRepository.findByUniqueCode(code); // Fetch user by unique code
+        return userRepository.findByUniqueCode(code);
     }
 
     @Override
     public User findByEmail(String email) {
-        return userRepository.findByEmail(email); // Fetch user by email
+        return userRepository.findByEmail(email);
     }
 
     @Override
@@ -78,7 +85,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) return false;
         user.setVerified(true);
         user.setVerificationToken(null);
-        userRepository.save(user); // Update verified status
+        userRepository.save(user);
         return true;
     }
 
@@ -90,59 +97,63 @@ public class UserServiceImpl implements UserService {
         String token = java.util.UUID.randomUUID().toString();
         user.setResetToken(token);
         user.setResetTokenExpiry(System.currentTimeMillis() + 15 * 60 * 1000); // 15 mins
-        userRepository.save(user); // Persist reset token
+        userRepository.save(user);
 
-        sendResetEmail(user); // Send reset email
+        sendResetEmail(user);
     }
 
     @Override
     public boolean resetPassword(String token, String newPassword) {
         User user = userRepository.findByResetToken(token);
-        if (user == null || user.getResetTokenExpiry() == null ||
-                user.getResetTokenExpiry() < System.currentTimeMillis()) return false;
+        if (user == null || user.getResetTokenExpiry() == null
+                || user.getResetTokenExpiry() < System.currentTimeMillis()) return false;
 
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
-        userRepository.save(user); // Update password
+        userRepository.save(user);
         return true;
     }
 
-
-
     // ----------------------------
-    // Email sending methods
+    // Email sending using Brevo API
     // ----------------------------
-
 
     private void sendVerificationEmail(User user) {
         String link = baseUrl + "/verify?token=" + user.getVerificationToken();
-        String body = "Hi " + user.getFullName() + ",\n\n" +
-                "Please verify your email by clicking the link below:\n" +
-                link + "\n\nThanks,\nChatLink Team";
+        String body = "Hi " + user.getFullName() + ",<br><br>" +
+                "Please verify your email by clicking the link below:<br>" +
+                "<a href='" + link + "'>" + link + "</a><br><br>Thanks,<br>ChatLink Team";
 
         sendEmail(user.getEmail(), "ChatLink - Verify Your Email", body);
     }
 
     private void sendResetEmail(User user) {
         String link = baseUrl + "/reset-password?token=" + user.getResetToken();
-        String body = "Hi " + user.getFullName() + ",\n\n" +
-                "Reset your password using the link below:\n" +
-                link + "\n\nThis link is valid for 15 minutes.\n\nChatLink Team";
+        String body = "Hi " + user.getFullName() + ",<br><br>" +
+                "Reset your password using the link below:<br>" +
+                "<a href='" + link + "'>" + link + "</a><br><br>" +
+                "This link is valid for 15 minutes.<br><br>ChatLink Team";
 
         sendEmail(user.getEmail(), "ChatLink - Reset Password", body);
     }
 
+    private void sendEmail(String to, String subject, String htmlBody) {
+        String jsonBody = "{"
+                + "\"sender\":{\"name\":\"ChatLink\",\"email\":\"" + fromEmail + "\"},"
+                + "\"to\":[{\"email\":\"" + to + "\"}],"
+                + "\"subject\":\"" + subject + "\","
+                + "\"htmlContent\":\"" + htmlBody + "\""
+                + "}";
 
-
-    private void sendEmail(String to, String subject, String body) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(body);
-        message.setFrom(fromEmail);
-        mailSender.send(message);
+        webClient.post()
+                .header("api-key", brevoApiKey)
+                .bodyValue(jsonBody)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block(); // blocking call for simplicity
     }
+
 
 
 
