@@ -45,3 +45,8 @@ target/
 # Docker-related files
 # -------------------
 docker-compose.override.yml
+
+# -------------------
+# Uploads folder (user files)
+# -------------------
+uploads/

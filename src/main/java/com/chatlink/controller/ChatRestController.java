@@ -50,7 +50,7 @@ public class ChatRestController {
         if (receiverId == null) return ResponseEntity.badRequest().body("receiverId is required");
 
         try {
-            File uploadDir = new File("C:/ChatLinkUploads");
+            File uploadDir = new File("uploads");
             if (!uploadDir.exists()) uploadDir.mkdirs();
 
             String safeFilename = System.currentTimeMillis() + "_" +
@@ -84,7 +84,7 @@ public class ChatRestController {
                 return ResponseEntity.badRequest().body("Invalid file name");
             }
 
-            File file = new File("C:/ChatLinkUploads/" + fileName);
+            File file = new File("uploads/" + fileName);
             if (!file.exists()) return ResponseEntity.notFound().build();
 
             return ResponseEntity.ok()
