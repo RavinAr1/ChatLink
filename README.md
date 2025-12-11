@@ -36,3 +36,4 @@ Create a .env file or provide these variables when running locally or in Docker
   APP_BASE_URL = <http://localhost:8082(for local testing)>
 
 ```
+Mailtrap was used here for testing email functionality in development.
