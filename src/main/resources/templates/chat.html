@@ -74,19 +74,44 @@
     let loggedInUserId = parseInt(document.getElementById("chatContainer").dataset.userid);
 
     function connect() {
-        const socket = new SockJS('/ws-chat');
-        stompClient = Stomp.over(socket);
 
-        stompClient.connect({}, function () {
+        //Uncomment the following lines for local development
+        // start uncomment
 
-            stompClient.subscribe('/topic/messages', function (output) {
-                const msg = JSON.parse(output.body);
-                if (!selectedUserId) return;
-                if ((msg.senderId === loggedInUserId && msg.receiverId === selectedUserId) ||
-                    (msg.senderId === selectedUserId && msg.receiverId === loggedInUserId)) {
-                    showMessage(msg);
-                }
+        // const socket = new SockJS('/ws-chat');
+        // stompClient = Stomp.over(socket);
+        //
+        // stompClient.connect({}, function () {
+        //
+        //     stompClient.subscribe('/topic/messages', function (output) {
+        //         const msg = JSON.parse(output.body);
+        //         if (!selectedUserId) return;
+        //         if ((msg.senderId === loggedInUserId && msg.receiverId === selectedUserId) ||
+        //             (msg.senderId === selectedUserId && msg.receiverId === loggedInUserId)) {
+        //             showMessage(msg);
+        //         }
+        //     });
+        // })
+
+        //end uncomment
+
+
+            //comment out the following lines for local development
+            //start comment
+
+            const socket = new SockJS('https://chatlink-production.up.railway.app/ws-chat');
+
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function(frame) {
+                console.log('STOMP Connected: ' + frame); // debug
+            }, function(error) {
+                console.error('STOMP connection error:', error); // debug
             });
+
+            //end comment
+
+
 
             stompClient.subscribe('/topic/files', function (output) {
                 const file = JSON.parse(output.body);
@@ -96,8 +121,8 @@
                     showAttachment(file);
                 }
             });
-        });
-    }
+        }
+
 
 
     function selectUser(element) {
