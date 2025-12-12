@@ -6,6 +6,7 @@ import com.chatlink.service.ChatService;
 import com.chatlink.service.ChatAttachmentService;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,6 +28,8 @@ public class ChatRestController {
 
     private final ChatService chatService;
     private final ChatAttachmentService chatAttachmentService;
+    @Value("${upload.dir}")
+    private String uploadDir;
 
     @GetMapping("/history")
     public List<Object> getChatHistory(@RequestParam Long user1, @RequestParam Long user2) {
@@ -42,6 +45,9 @@ public class ChatRestController {
         return combined; // Return combined sorted chat history
     }
 
+
+
+
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
                                         @RequestParam("receiverId") Long receiverId,
@@ -50,14 +56,14 @@ public class ChatRestController {
         if (receiverId == null) return ResponseEntity.badRequest().body("receiverId is required");
 
         try {
-            File uploadDir = new File("uploads");
-            if (!uploadDir.exists()) uploadDir.mkdirs();
+            File uploadDirFile = new File(this.uploadDir);
+            if (!uploadDirFile.exists()) uploadDirFile.mkdirs();
 
             String safeFilename = System.currentTimeMillis() + "_" +
                     file.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
 
-            File dest = new File(uploadDir, safeFilename);
-            file.transferTo(dest); // Save file to disk
+            File dest = new File(uploadDirFile, safeFilename);
+            file.transferTo(dest); // Save file to persistent Railway volume
 
             ChatAttachment attachment = new ChatAttachment();
             attachment.setFileName(file.getOriginalFilename());
@@ -67,7 +73,7 @@ public class ChatRestController {
             if (senderId != null) attachment.setSenderId(senderId);
             attachment.setTimestamp(LocalDateTime.now());
 
-            chatAttachmentService.saveAttachment(attachment); // Persist attachment record
+            chatAttachmentService.saveAttachment(attachment); // Persist record
 
             return ResponseEntity.ok(attachment);
 
@@ -77,6 +83,10 @@ public class ChatRestController {
         }
     }
 
+
+
+
+
     @GetMapping("/download/{fileName:.+}")
     public ResponseEntity<?> downloadFile(@PathVariable String fileName) {
         try {
@@ -84,7 +94,7 @@ public class ChatRestController {
                 return ResponseEntity.badRequest().body("Invalid file name");
             }
 
-            File file = new File("uploads/" + fileName);
+            File file = new File(this.uploadDir, fileName);
             if (!file.exists()) return ResponseEntity.notFound().build();
 
             return ResponseEntity.ok()
