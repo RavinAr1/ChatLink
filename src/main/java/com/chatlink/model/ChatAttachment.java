@@ -21,6 +21,6 @@ public class ChatAttachment {
     private LocalDateTime timestamp;
 
 
-//    private Long replyToAttachmentId;
-//    private String replyPreview; // store fileName
+    private Long replyToAttachmentId;
+    private String replyPreview; // store fileName
 }

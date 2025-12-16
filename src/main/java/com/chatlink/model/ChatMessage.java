@@ -19,8 +19,8 @@ public class ChatMessage {
     private String content;
     private LocalDateTime timestamp;
 
-//    private Long replyToMessageId;
-//    private String replyPreview;
+    private Long replyToMessageId;
+    private String replyPreview;
 
 
 }
