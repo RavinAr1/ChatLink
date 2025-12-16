@@ -3,26 +3,29 @@ package com.chatlink.service.impl;
 import com.chatlink.model.User;
 import com.chatlink.repository.UserRepository;
 import com.chatlink.service.UserService;
-import com.google.zxing.*;
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.LuminanceSource;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
-import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.HybridBinarizer;
-import com.google.zxing.qrcode.QRCodeWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 
-// For local SMTP testing
-// import org.springframework.mail.SimpleMailMessage;
-// import org.springframework.mail.javamail.JavaMailSender;
-
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
+
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.BarcodeFormat;
+
+import javax.imageio.ImageIO;
+
+import com.google.zxing.*;
+
+import com.google.zxing.Result;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -30,26 +33,14 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
 
-    // ----------------------------
-    // Local SMTP sending (for testing)
-    // ----------------------------
-    // @Autowired
-    // private JavaMailSender mailSender;
+    @Autowired
+    private JavaMailSender mailSender;
 
     @Value("${app.base-url}") // Base URL for email links
     private String baseUrl;
 
-    @Value("${email.from}") // From email address
+    @Value("${spring.mail.from}") // From email address
     private String fromEmail;
-
-    @Value("${email.api.key}") // Brevo API key
-    private String brevoApiKey;
-
-    // WebClient for Brevo API calls
-    private WebClient webClient = WebClient.builder()
-            .baseUrl("https://api.brevo.com/v3/smtp/email")
-            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-            .build();
 
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -68,13 +59,8 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        // Send verification email (deployment using Brevo)
+        // Send verification email
         sendVerificationEmail(savedUser);
-
-        // ----------------------------
-        // Local SMTP version (for testing)
-        // ----------------------------
-        // sendVerificationEmailSMTP(savedUser);
 
         return savedUser;
     }
@@ -122,13 +108,7 @@ public class UserServiceImpl implements UserService {
         user.setResetTokenExpiry(System.currentTimeMillis() + 15 * 60 * 1000); // 15 mins expiry
         userRepository.save(user);
 
-        // Send reset email (deployment using Brevo)
         sendResetEmail(user);
-
-        // ----------------------------
-        // Local SMTP version (for testing)
-        // ----------------------------
-        // sendResetEmailSMTP(user);
     }
 
     @Override
@@ -147,80 +127,39 @@ public class UserServiceImpl implements UserService {
     }
 
     // ----------------------------
-    // Deployment Email sending using Brevo API
+    // Real email sending methods
     // ----------------------------
-
     private void sendVerificationEmail(User user) {         // Send verification email
         String link = baseUrl + "/verify?token=" + user.getVerificationToken();
-        String body = "Hi " + user.getFullName() + ",<br><br>"
-                + "Please verify your email by clicking the link below:<br>"
-                + "<a href='" + link + "'>" + link + "</a><br><br>Thanks,<br>ChatLink Team";
+        String body = "Hi " + user.getFullName() + ",\n\n"
+                + "Please verify your email by clicking the link below:\n"
+                + link + "\n\nThanks,\nChatLink Team";
 
         sendEmail(user.getEmail(), "ChatLink - Verify Your Email", body);
     }
 
     private void sendResetEmail(User user) {        // Send password reset email
         String link = baseUrl + "/reset-password?token=" + user.getResetToken();
-        String body = "Hi " + user.getFullName() + ",<br><br>"
-                + "Reset your password using the link below:<br>"
-                + "<a href='" + link + "'>" + link + "</a><br><br>"
-                + "This link is valid for 15 minutes.<br><br>ChatLink Team";
-
-        sendEmail(user.getEmail(), "ChatLink - Reset Password", body);
-    }
-
-    private void sendEmail(String to, String subject, String htmlBody) {       // General email sending method
-        String jsonBody = "{"
-                + "\"sender\":{\"name\":\"ChatLink\",\"email\":\"" + fromEmail + "\"},"
-                + "\"to\":[{\"email\":\"" + to + "\"}],"
-                + "\"subject\":\"" + subject + "\","
-                + "\"htmlContent\":\"" + htmlBody + "\""
-                + "}";
-
-        webClient.post()
-                .header("api-key", brevoApiKey)
-                .bodyValue(jsonBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block(); // blocking call for simplicity
-    }
-
-    // ----------------------------
-    // Local SMTP email methods
-    // ----------------------------
-    /*
-    private void sendVerificationEmailSMTP(User user) {
-        String link = baseUrl + "/verify?token=" + user.getVerificationToken();
-        String body = "Hi " + user.getFullName() + ",\n\n"
-                + "Please verify your email by clicking the link below:\n"
-                + link + "\n\nThanks,\nChatLink Team";
-
-        sendEmailSMTP(user.getEmail(), "ChatLink - Verify Your Email", body);
-    }
-
-    private void sendResetEmailSMTP(User user) {
-        String link = baseUrl + "/reset-password?token=" + user.getResetToken();
         String body = "Hi " + user.getFullName() + ",\n\n"
                 + "Reset your password using the link below:\n"
                 + link + "\n\nThis link is valid for 15 minutes.\n\nChatLink Team";
 
-        sendEmailSMTP(user.getEmail(), "ChatLink - Reset Password", body);
+        sendEmail(user.getEmail(), "ChatLink - Reset Password", body);
     }
 
-    private void sendEmailSMTP(String toEmail, String subject, String body) {
+    private void sendEmail(String toEmail, String subject, String body) {       // General email sending method
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromEmail);
+        message.setFrom(fromEmail); // use fromEmail from properties
         message.setTo(toEmail);
         message.setSubject(subject);
         message.setText(body);
         mailSender.send(message);
     }
-    */
 
     @Override
     public BufferedImage generateQRCode(String text, int width, int height) throws Exception {      // QR code generation
         QRCodeWriter qrWriter = new QRCodeWriter();
-        BitMatrix matrix = qrWriter.encode(text, BarcodeFormat.QR_CODE, width, height);
+        BitMatrix matrix = qrWriter.encode(text, BarcodeFormat.QR_CODE, width, height);     // Create BitMatrix
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);     // Create image
 
