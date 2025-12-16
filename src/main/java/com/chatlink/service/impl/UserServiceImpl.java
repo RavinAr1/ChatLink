@@ -16,9 +16,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
-// For local SMTP testing
-// import org.springframework.mail.SimpleMailMessage;
-// import org.springframework.mail.javamail.JavaMailSender;
+
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -33,8 +31,8 @@ public class UserServiceImpl implements UserService {
     // ----------------------------
     // Local SMTP sending (for testing)
     // ----------------------------
-    // @Autowired
-    // private JavaMailSender mailSender;
+//    @Autowired(required = false)
+//     private JavaMailSender mailSender;
 
     @Value("${app.base-url}") // Base URL for email links
     private String baseUrl;
