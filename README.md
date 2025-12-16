@@ -38,15 +38,13 @@ Create a .env file or provide these variables when running locally in applicatio
   APP_BASE_URL = <http://localhost:8082(for local testing)>
 
   UPLOAD_DIR = ${UPLOAD_DIR:/tmp/uploads}
-
-max file size is reduced to 5MB for cloud testing purposes. can be changed in application.properties file.
-```
-  
 #  Default file upload directory is /tmp/uploads(whichever drive the project is saved on - change to have a diffrent folder),
 #  can be overridden by setting the UPLOAD_DIR environment variable when deploying the 
 #  application. - change "/tmp/uploads" to your desired path keep the ${UPLOAD_DIR: part as is.
+
+  max file size is reduced to 5MB for cloud testing purposes. can be changed in application.properties file.
   
+  Mailtrap was used here for testing email functionality in development.
 
 ```
-Mailtrap was used here for testing email functionality in development.
 
