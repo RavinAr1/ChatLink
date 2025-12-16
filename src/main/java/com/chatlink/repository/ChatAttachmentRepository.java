@@ -2,6 +2,7 @@ package com.chatlink.repository;
 
 import com.chatlink.model.ChatAttachment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,4 +20,12 @@ public interface ChatAttachmentRepository extends JpaRepository<ChatAttachment, 
             @Param("u1") Long user1,
             @Param("u2") Long user2
     ); // Fetch attachments between two users in chronological order
+
+
+
+    @Modifying
+    @Query("DELETE FROM ChatAttachment a WHERE (a.senderId = :u1 AND a.receiverId = :u2) OR (a.senderId = :u2 AND a.receiverId = :u1)")
+    void deleteAttachmentsBetween(@Param("u1") Long user1, @Param("u2") Long user2);
+
+
 }

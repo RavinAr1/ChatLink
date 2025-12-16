@@ -2,26 +2,66 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Chat | ChatLink</title>
+    <link rel="icon" type="image/png" href="/images/logo.png">
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
     <link rel="stylesheet" href="/css/output.css">
+
+    <style>
+        .chat-message {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .chat-controls {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            margin-top: 2px;
+            display: flex;
+            gap: 4px;
+        }
+
+        .chat-message:hover .chat-controls {
+            opacity: 1;
+        }
+
+        /* Make connections and chat box scrollable */
+        #connectionList {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        #chat-box {
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+
+        /* Optional: hide scrollbar for Chrome/Safari */
+        #connectionList::-webkit-scrollbar,
+        #chat-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        #connectionList::-webkit-scrollbar-thumb,
+        #chat-box::-webkit-scrollbar-thumb {
+            background-color: rgba(100, 100, 100, 0.5);
+            border-radius: 3px;
+        }
+    </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
 
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <div id="chatContainer"
-     class="container mx-auto mt-10 flex gap-6"
+     class="container mx-auto mt-10 flex flex-col md:flex-row gap-6"
      th:data-userid="${user.id}">
 
-
-
     <!-- Connections -->
-    <div class="w-1/3 bg-gray-800 p-4 rounded-lg shadow-lg">
+    <div class="w-full md:w-1/3 bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col">
         <h4 class="text-xl font-bold mb-2">Connections</h4>
-        <ul id="connectionList" class="space-y-2">
+        <ul id="connectionList" class="space-y-2 flex-1">
             <li th:each="conn : ${connections}"
                 th:id="'conn-' + ${conn.id}"
                 th:data-userid="${conn.id}"
@@ -33,30 +73,28 @@
         </ul>
     </div>
 
-
-
     <!-- Chat Window -->
-    <div class="w-2/3 bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col">
-        <h4 id="chatWith" class="text-xl font-bold mb-2">
-            Select a user to start chatting
+    <div class="w-full md:w-2/3 bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col">
+        <h4 id="chatWith" class="text-xl font-bold mb-2 flex justify-between items-center">
+            <span id="chatTitle">Select a user to start chatting</span>
+            <div class="flex gap-2">
+                <button onclick="refreshChat()" title="Refresh">🔄</button>
+                <button onclick="deleteChat()" title="Delete chat">🗑️</button>
+            </div>
         </h4>
 
         <div id="chat-box"
              class="flex-1 overflow-y-auto p-3 mb-3 bg-gray-900 rounded border border-gray-700">
         </div>
 
-
-        <!-- Message + File Input -->
-        <div class="flex gap-2 items-center">
+        <div class="flex flex-row gap-2 items-center w-full">
             <input type="file" id="fileInput" class="text-sm text-gray-300">
             <input type="text" id="messageInput" placeholder="Type message"
                    class="flex-1 p-2 rounded bg-gray-700 text-gray-100 outline-none">
-
             <button onclick="sendMessage()"
                     class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">
                 Send
             </button>
-
             <button onclick="sendFile()"
                     class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded">
                 Send File
@@ -64,54 +102,26 @@
         </div>
     </div>
 </div>
-
-
-
 <script>
     let stompClient = null;
     let selectedUserId = null;
     let selectedUserName = '';
     let loggedInUserId = parseInt(document.getElementById("chatContainer").dataset.userid);
+    let replyContext = null;
 
     function connect() {
+        const socket = new SockJS('/ws-chat');
+        stompClient = Stomp.over(socket);
 
-        //Uncomment the following lines for local development
-        // start uncomment
-
-        // const socket = new SockJS('/ws-chat');
-        // stompClient = Stomp.over(socket);
-        //
-        // stompClient.connect({}, function () {
-        //
-        //     stompClient.subscribe('/topic/messages', function (output) {
-        //         const msg = JSON.parse(output.body);
-        //         if (!selectedUserId) return;
-        //         if ((msg.senderId === loggedInUserId && msg.receiverId === selectedUserId) ||
-        //             (msg.senderId === selectedUserId && msg.receiverId === loggedInUserId)) {
-        //             showMessage(msg);
-        //         }
-        //     });
-        // })
-
-        //end uncomment
-
-
-            //comment out the following lines for local development
-            //start comment
-
-            const socket = new SockJS('https://chatlink-production.up.railway.app/ws-chat');
-
-            stompClient = Stomp.over(socket);
-
-            stompClient.connect({}, function(frame) {
-                console.log('STOMP Connected: ' + frame); // debug
-            }, function(error) {
-                console.error('STOMP connection error:', error); // debug
+        stompClient.connect({}, function () {
+            stompClient.subscribe('/topic/messages', function (output) {
+                const msg = JSON.parse(output.body);
+                if (!selectedUserId) return;
+                if ((msg.senderId === loggedInUserId && msg.receiverId === selectedUserId) ||
+                    (msg.senderId === selectedUserId && msg.receiverId === loggedInUserId)) {
+                    showMessage(msg);
+                }
             });
-
-            //end comment
-
-
 
             stompClient.subscribe('/topic/files', function (output) {
                 const file = JSON.parse(output.body);
@@ -121,15 +131,14 @@
                     showAttachment(file);
                 }
             });
-        }
-
-
+        });
+    }
 
     function selectUser(element) {
         selectedUserId = parseInt(element.dataset.userid);
         selectedUserName = element.dataset.fullname;
 
-        document.getElementById("chatWith").innerText = "Chatting with " + selectedUserName;
+        document.getElementById("chatTitle").innerText = "Chatting with " + selectedUserName;
         document.getElementById("chat-box").innerHTML = "";
 
         fetch(`/api/chat/history?user1=${loggedInUserId}&user2=${selectedUserId}`)
@@ -140,57 +149,95 @@
             }));
     }
 
-
     function sendMessage() {
         if (!selectedUserId) { alert("Select a user first!"); return; }
         const content = document.getElementById('messageInput').value.trim();
         if (!content) return;
 
-        const message = { senderId: loggedInUserId, receiverId: selectedUserId, content };
+        const message = {
+            senderId: loggedInUserId,
+            receiverId: selectedUserId,
+            content,
+            replyPreview: replyContext?.content || replyContext?.fileName,
+            replyToMessageId: replyContext?.id
+        };
+
         stompClient.send("/app/chat.send", {}, JSON.stringify(message));
         document.getElementById('messageInput').value = '';
+        replyContext = null;
+        document.getElementById('messageInput').placeholder = "Type message";
     }
-
 
     function sendFile() {
         const fileInput = document.getElementById("fileInput");
         const file = fileInput.files[0];
         if (!file) { alert("Select a file"); return; }
 
-
         const formData = new FormData();
         formData.append("file", file);
         formData.append("senderId", loggedInUserId);
         formData.append("receiverId", selectedUserId);
+        formData.append("replyToAttachmentId", replyContext?.id);
+
 
         fetch("/api/chat/upload", { method: "POST", body: formData })
             .then(res => res.json())
             .then(attachment => {
-                // Send via STOMP so both users see it immediately
+                attachment.replyPreview = replyContext?.fileName;
                 stompClient.send("/app/chat.send-file", {}, JSON.stringify(attachment));
             })
             .catch(err => console.error(err));
 
         fileInput.value = "";
+        replyContext = null;
+        document.getElementById('messageInput').placeholder = "Type message";
     }
 
-
+    function formatTime(ts) {
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
 
     function showMessage(msg) {
         const chatBox = document.getElementById("chat-box");
         const line = document.createElement("div");
-        line.classList.add("mb-2", "p-2", "rounded");
+        line.classList.add("mb-2", "p-2", "rounded", "chat-message");
+
+        // Reply preview (if exists)
+        const replyHtml = msg.replyPreview
+            ? `<div class="text-xs opacity-60 border-l-2 pl-2 mb-1">Replying to: ${msg.replyPreview}</div>`
+            : '';
+
+        // Message content + timestamp
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = replyHtml + `<span>${msg.content}</span><div class="text-xs opacity-50">${formatTime(msg.timestamp)}</div>`;
+
+        // Controls container
+        const controlsDiv = document.createElement("div");
+        controlsDiv.classList.add("chat-controls");
+
+        const replyBtn = document.createElement("span");
+        replyBtn.textContent = "↩️";
+        replyBtn.classList.add("cursor-pointer");
+        replyBtn.addEventListener("click", () => setReply(msg));
+
+        controlsDiv.appendChild(replyBtn);
 
         if (msg.senderId === loggedInUserId) {
             line.classList.add("text-right", "bg-blue-600", "text-white");
-            line.innerHTML = `<strong>You:</strong> ${msg.content}`;
-            line.style.marginLeft = "30%";
+            const deleteBtn = document.createElement("span");
+            deleteBtn.textContent = "❌";
+            deleteBtn.classList.add("cursor-pointer");
+            deleteBtn.addEventListener("click", () => deleteMessage(msg.id));
+            controlsDiv.appendChild(deleteBtn);
+            line.style.marginLeft = window.innerWidth >= 768 ? "30%" : "10%"; // sent messages
         } else {
             line.classList.add("text-left", "bg-gray-700");
-            line.innerHTML = `<strong>${selectedUserName}:</strong> ${msg.content}`;
-            line.style.marginRight = "30%";
+            line.style.marginRight = window.innerWidth >= 768 ? "30%" : "10%"; // received messages
         }
 
+        contentDiv.appendChild(controlsDiv);
+        line.appendChild(contentDiv);
         chatBox.appendChild(line);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -199,25 +246,103 @@
     function showAttachment(file) {
         const chatBox = document.getElementById("chat-box");
         const line = document.createElement("div");
-        line.classList.add("mb-2", "p-2", "rounded");
+        line.classList.add("mb-2", "p-2", "rounded", "chat-message");
 
-        const link = `<a href="${file.fileUrl}" download class="underline text-blue-300">
-                    📎 ${file.fileName}
-                  </a>`;
+        const replyHtml = file.replyPreview
+            ? `<div class="text-xs opacity-60 border-l-2 pl-2 mb-1">Replying to: ${file.replyPreview}</div>`
+            : '';
+
+        const link = `<a href="${file.fileUrl}" download class="underline text-blue-300">📎 ${file.fileName}</a>`;
+
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = replyHtml + link + `<div class="text-xs opacity-50">${formatTime(file.timestamp)}</div>`;
+
+        const controlsDiv = document.createElement("div");
+        controlsDiv.classList.add("chat-controls");
+
+        const replyBtn = document.createElement("span");
+        replyBtn.textContent = "↩️";
+        replyBtn.classList.add("cursor-pointer");
+        replyBtn.addEventListener("click", () => setReply(file));
+        controlsDiv.appendChild(replyBtn);
 
         if (file.senderId === loggedInUserId) {
             line.classList.add("text-right", "bg-purple-600", "text-white");
-            line.innerHTML = `<strong>You:</strong> ${link}`;
+            const deleteBtn = document.createElement("span");
+            deleteBtn.textContent = "❌";
+            deleteBtn.classList.add("cursor-pointer");
+            deleteBtn.addEventListener("click", () => deleteAttachment(file.id));
+            controlsDiv.appendChild(deleteBtn);
             line.style.marginLeft = "30%";
         } else {
             line.classList.add("text-left", "bg-gray-700");
-            line.innerHTML = `<strong>${selectedUserName}:</strong> ${link}`;
             line.style.marginRight = "30%";
         }
 
+        contentDiv.appendChild(controlsDiv);
+        line.appendChild(contentDiv);
         chatBox.appendChild(line);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+
+
+    function setReply(item) {
+        replyContext = item;
+        document.getElementById("messageInput").placeholder =
+            "Replying to: " + (item.content || item.fileName);
+    }
+
+    function refreshChat() {
+        if (!selectedUserId) return;
+        selectUser(document.querySelector(`[data-userid='${selectedUserId}']`));
+    }
+
+    function deleteMessage(id) {
+        if (!confirm("Are you sure you want to delete this message?")) return;
+
+        fetch(`/api/chat/message/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to delete message");
+                refreshChat();
+            })
+            .catch(err => console.error(err));
+    }
+
+    function deleteAttachment(id) {
+        if (!confirm("Are you sure you want to delete this attachment?")) return;
+
+        fetch(`/api/chat/attachment/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to delete attachment");
+                refreshChat();
+            })
+            .catch(err => console.error(err));
+    }
+
+    function deleteChat() {
+        if (!selectedUserId) { alert("Select a user first!"); return; }
+
+        if (!confirm(`Are you sure you want to delete the entire chat with ${selectedUserName}?`)) return;
+
+        fetch(`/api/chat/delete?user1=${loggedInUserId}&user2=${selectedUserId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to delete chat");
+                document.getElementById("chat-box").innerHTML = "";
+            })
+            .catch(err => console.error(err));
+    }
+
+
 
     connect();
 </script>

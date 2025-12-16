@@ -16,7 +16,11 @@ public class ChatMessage {
 
     private Long senderId;
     private Long receiverId;
-
     private String content;
     private LocalDateTime timestamp;
+
+//    private Long replyToMessageId;
+//    private String replyPreview;
+
+
 }

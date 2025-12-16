@@ -19,7 +19,7 @@ public class ConnectionController {
     private final UserService userService;
     private final ConnectionService connectionService;
 
-    @GetMapping("/connect")
+    @GetMapping("/connect")     // Show connections page
     public String showConnectPage() {
         return "connect";
     }
@@ -35,32 +35,39 @@ public class ConnectionController {
             return "connect";
         }
 
-        connectionService.sendRequest(sender.getId(), receiver.getId()); // Send connection request
-        model.addAttribute("success", "Request Sent!");
+        ConnectionRequest request = connectionService.sendRequest(sender.getId(), receiver.getId());
+
+        if (request != null) {
+            model.addAttribute("success", "Connection request sent successfully!");
+        } else {
+            model.addAttribute("error", "You have already sent a request to this user.");
+        }
 
         return "connect";
     }
 
-    @GetMapping("/requests")
+
+
+    @GetMapping("/requests")       // View received connection requests
     public String viewRequests(HttpSession session, Model model) {
 
         User user = (User) session.getAttribute("loggedUser");
 
-        List<ConnectionRequest> requests = connectionService.getPendingRequests(user.getId());
-        model.addAttribute("requests", requests); // Show pending requests
+        List<ConnectionRequest> requests = connectionService.getPendingRequests(user.getId());      // Fetch pending requests
+        model.addAttribute("requests", requests);
 
         return "requests";
     }
 
-    @PostMapping("/requests/accept")
+    @PostMapping("/requests/accept")    // Accept connection request
     public String accept(@RequestParam Long requestId) {
-        connectionService.acceptRequest(requestId); // Accept connection request
+        connectionService.acceptRequest(requestId);
         return "redirect:/requests";
     }
 
-    @PostMapping("/requests/reject")
+    @PostMapping("/requests/reject")    // Reject connection request
     public String reject(@RequestParam Long requestId) {
-        connectionService.rejectRequest(requestId); // Reject connection request
+        connectionService.rejectRequest(requestId);
         return "redirect:/requests";
     }
 }

@@ -5,9 +5,13 @@ import com.chatlink.model.ChatMessage;
 import com.chatlink.service.ChatService;
 import com.chatlink.service.ChatAttachmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDateTime;
 
@@ -16,25 +20,27 @@ import java.time.LocalDateTime;
 public class ChatController {
 
     private final ChatService chatService;
-    private final ChatAttachmentService chatAttachmentService;   // Service for file attachments
+    private final ChatAttachmentService chatAttachmentService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    @MessageMapping("/chat.send")
+
+    @MessageMapping("/chat.send")   // for sending messages
     public void sendMessage(ChatMessage message) {
         message.setTimestamp(LocalDateTime.now());
-        chatService.saveMessage(message);                         // Persist chat message
+        // Save replyToMessageId if any
+        chatService.saveMessage(message);
         messagingTemplate.convertAndSend("/topic/messages", message);
     }
 
 
-    @MessageMapping("/chat.send-file")
+    @MessageMapping("/chat.send-file")  //  for sending files
     public void sendFile(ChatAttachment attachment) {
         attachment.setTimestamp(LocalDateTime.now());
-        chatAttachmentService.saveAttachment(attachment);         // Persist attachment
+        chatAttachmentService.saveAttachment(attachment);
         messagingTemplate.convertAndSend("/topic/files", attachment);
     }
 
 
-    //TODO: Add methods for deleting chat messages and entire chats.
+
 
 }

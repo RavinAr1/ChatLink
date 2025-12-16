@@ -16,10 +16,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -28,84 +29,101 @@ public class ChatRestController {
 
     private final ChatService chatService;
     private final ChatAttachmentService chatAttachmentService;
-    @Value("${upload.dir}")
+
+    @Value("${upload.dir}")     // Directory for file uploads
     private String uploadDir;
 
-    @GetMapping("/history")
+    @GetMapping("/history")     // Get chat history between two users
     public List<Object> getChatHistory(@RequestParam Long user1, @RequestParam Long user2) {
         List<Object> combined = new ArrayList<>();
         combined.addAll(chatService.getChatHistory(user1, user2));
         combined.addAll(chatAttachmentService.getAttachments(user1, user2));
 
-        combined.sort(Comparator.comparing(o -> {
-            if (o instanceof ChatMessage) return ((ChatMessage) o).getTimestamp();
-            else return ((ChatAttachment) o).getTimestamp();
-        }));
+        combined.sort(Comparator.comparing(o ->
+                o instanceof ChatMessage
+                        ? ((ChatMessage) o).getTimestamp()
+                        : ((ChatAttachment) o).getTimestamp()
+        ));
 
-        return combined; // Return combined sorted chat history
+        return combined;
     }
 
-
-
-
-    @PostMapping("/upload")
+    @PostMapping("/upload")     // Upload a file attachment
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
                                         @RequestParam("receiverId") Long receiverId,
                                         @RequestParam(required = false) Long senderId) {
-        if (file.isEmpty()) return ResponseEntity.badRequest().body("File is empty");
-        if (receiverId == null) return ResponseEntity.badRequest().body("receiverId is required");
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("File is empty");
+        }
+        if (receiverId == null) {
+            return ResponseEntity.badRequest().body("receiverId is required");
+        }
 
         try {
-            File uploadDirFile = new File(this.uploadDir);
-            if (!uploadDirFile.exists()) uploadDirFile.mkdirs();
+            // Ensure upload directory exists
+            File dir = new File(uploadDir);
+            if (!dir.exists() && !dir.mkdirs()) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)  // If the directory does not exist and cannot be created,
 
+                        .body("Could not create upload directory");
+            }
+
+            // Safe filename
+            String originalFilename = file.getOriginalFilename(); // Get original filename
             String safeFilename = System.currentTimeMillis() + "_" +
-                    file.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
+                    originalFilename.replaceAll("[^a-zA-Z0-9\\.\\-]", "_"); // Sanitize filename
 
-            File dest = new File(uploadDirFile, safeFilename);
-            file.transferTo(dest); // Save file to persistent Railway volume
+            Path destPath = Path.of(dir.getAbsolutePath(), safeFilename);   // Destination path
+            Files.copy(file.getInputStream(), destPath, StandardCopyOption.REPLACE_EXISTING);   // Save file
 
+            // Save attachment record
             ChatAttachment attachment = new ChatAttachment();
-            attachment.setFileName(file.getOriginalFilename());
+            attachment.setFileName(originalFilename);
             attachment.setFileType(file.getContentType());
-            attachment.setFileUrl("/api/chat/download/" + safeFilename);
+            attachment.setFileUrl("/api/chat/download/" + safeFilename);    // URL to download the file
             attachment.setReceiverId(receiverId);
             if (senderId != null) attachment.setSenderId(senderId);
             attachment.setTimestamp(LocalDateTime.now());
 
-            chatAttachmentService.saveAttachment(attachment); // Persist record
-
+            chatAttachmentService.saveAttachment(attachment);
             return ResponseEntity.ok(attachment);
 
         } catch (IOException e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to save file");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Upload failed");
         }
     }
 
-
-
-
-
-    @GetMapping("/download/{fileName:.+}")
+    // ===================== FILE DOWNLOAD =====================
+    @GetMapping("/download/{fileName:.+}")      // Download a file attachment
     public ResponseEntity<?> downloadFile(@PathVariable String fileName) {
-        try {
-            if (!fileName.matches("[a-zA-Z0-9._-]+")) {
-                return ResponseEntity.badRequest().body("Invalid file name");
-            }
+        File file = new File(uploadDir, fileName);
+        if (!file.exists()) return ResponseEntity.notFound().build();
 
-            File file = new File(this.uploadDir, fileName);
-            if (!file.exists()) return ResponseEntity.notFound().build();
-
-            return ResponseEntity.ok()
-                    .header("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"")
-                    .contentLength(file.length())
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .body(new FileSystemResource(file)); // Serve file for download
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Could not download file");
-        }
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"")
+                .contentLength(file.length())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(new FileSystemResource(file));
     }
 
+    @DeleteMapping("/message/{id}")     // Delete a chat message
+    public ResponseEntity<Void> deleteMessage(@PathVariable Long id) {
+        chatService.deleteMessage(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/attachment/{id}")      // Delete a chat attachment
+    public ResponseEntity<Void> deleteAttachment(@PathVariable Long id) {
+        chatAttachmentService.deleteAttachment(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/delete")   // Delete entire chat between two users
+    public ResponseEntity<Void> deleteChat(@RequestParam Long user1,
+                                           @RequestParam Long user2) {
+        chatService.deleteChat(user1, user2);
+        return ResponseEntity.ok().build();
+    }
 }

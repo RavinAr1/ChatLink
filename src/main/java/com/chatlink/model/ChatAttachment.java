@@ -13,21 +13,14 @@ public class ChatAttachment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private Long senderId;
-
-    @Column(name = "receiver_id", nullable = false)
     private Long receiverId;
-
-    @Column(nullable = false)
     private String fileName;
-
-    @Column(nullable = false)
-    private String fileType;   // IMAGE, FILE, etc.
-
-    @Column(nullable = false)
-    private String fileUrl;    // Path to stored file
-
-    @Column(nullable = false)
+    private String fileType;
+    private String fileUrl;
     private LocalDateTime timestamp;
+
+
+//    private Long replyToAttachmentId;
+//    private String replyPreview; // store fileName
 }
