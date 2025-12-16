@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.*;
 
 @RestController
@@ -83,7 +83,7 @@ public class ChatRestController {
             attachment.setFileUrl("/api/chat/download/" + safeFilename);    // URL to download the file
             attachment.setReceiverId(receiverId);
             if (senderId != null) attachment.setSenderId(senderId);
-            attachment.setTimestamp(LocalDateTime.now());
+            attachment.setTimestamp(Instant.now());
 
             chatAttachmentService.saveAttachment(attachment);
             return ResponseEntity.ok(attachment);

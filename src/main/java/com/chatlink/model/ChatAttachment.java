@@ -2,7 +2,8 @@ package com.chatlink.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 
 @Data
 @Entity
@@ -18,7 +19,7 @@ public class ChatAttachment {
     private String fileName;
     private String fileType;
     private String fileUrl;
-    private LocalDateTime timestamp;
+    private Instant timestamp;
 
 
     private Long replyToAttachmentId;
