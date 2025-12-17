@@ -387,8 +387,12 @@
 
     function formatTime(ts) {
         const d = new Date(ts);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     }
+
 
     function showMessage(msg) {
         const chatBox = document.getElementById("chat-box");
