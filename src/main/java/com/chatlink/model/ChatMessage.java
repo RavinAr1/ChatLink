@@ -3,7 +3,8 @@ package com.chatlink.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+
 
 @Data
 @Entity
@@ -17,7 +18,7 @@ public class ChatMessage {
     private Long senderId;
     private Long receiverId;
     private String content;
-    private LocalDateTime timestamp;
+    private Instant timestamp;
 
     private Long replyToMessageId;
     private String replyPreview;

@@ -7,7 +7,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -22,7 +22,7 @@ public class ChatAttachmentServiceImpl implements ChatAttachmentService {
 
     public ChatAttachment saveAttachment(ChatAttachment attachment) {   // save or update attachment
         if (attachment.getTimestamp() == null) {
-            attachment.setTimestamp(LocalDateTime.now());
+            attachment.setTimestamp(Instant.now());
         }
         return attachmentRepo.save(attachment);
     }
