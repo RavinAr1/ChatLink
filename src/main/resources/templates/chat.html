@@ -1,84 +1,306 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat | ChatLink</title>
+    <link rel="icon" type="image/png" href="/images/logo.png">
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
     <link rel="stylesheet" href="/css/output.css">
+
+    <style>
+        .chat-message {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .chat-controls {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-top: 4px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .chat-controls span {
+            min-width: 26px;
+            min-height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-message:hover .chat-controls {
+            opacity: 1;
+        }
+
+        #connectionList {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        #chat-box {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        @media (max-width: 767px) {
+            #chat-box {
+                max-height: calc(100vh - 350px);
+            }
+        }
+
+
+        /* Hide hamburger menu on desktop */
+        @media (min-width: 768px) {
+            .mobile-only {
+                display: none !important;
+            }
+        }
+
+
+        #connectionList::-webkit-scrollbar,
+        #chat-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        #connectionList::-webkit-scrollbar-thumb,
+        #chat-box::-webkit-scrollbar-thumb {
+            background-color: rgba(100, 100, 100, 0.5);
+            border-radius: 3px;
+        }
+
+        .reply-preview {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 6px 10px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            border-left: 3px solid currentColor;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            min-height: 36px;
+        }
+
+        .reply-preview:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .message-highlight {
+            animation: highlight-flash 1.5s ease-out;
+        }
+
+        @keyframes highlight-flash {
+            0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+            50% { box-shadow: 0 0 20px 5px rgba(250, 204, 21, 0.7); }
+            100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+        }
+
+        /* Mobile file input styling */
+        #fileInput {
+            font-size: 0.875rem;
+        }
+
+        #fileInput::file-selector-button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: none;
+            background-color: #4b5563;
+            color: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        /* Hide connections on mobile by default */
+        @media (max-width: 767px) {
+            #connectionsPanel {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 80%;
+                max-width: 300px;
+                height: 100vh;
+                z-index: 50;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                background-color: #1f2937;
+            }
+
+            #connectionsPanel.show {
+                transform: translateX(0);
+            }
+
+            #overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100vh;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 40;
+            }
+
+            #overlay.show {
+                display: block;
+            }
+        }
+
+        /* Better spacing for mobile buttons */
+        @media (max-width: 640px) {
+            .action-button {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+                min-height: 44px;
+            }
+        }
+
+        /* Image lightbox modal */
+        #imageLightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        #imageLightbox img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+        }
+
+        #imageLightbox .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 40px;
+            color: white;
+            cursor: pointer;
+            z-index: 1001;
+        }
+    </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
 
 <div th:replace="fragments/navbar :: navbar"></div>
 
+<!-- Mobile overlay -->
+<div id="overlay" onclick="toggleConnections()"></div>
+
+<!-- Image Lightbox -->
+<div id="imageLightbox" onclick="closeLightbox()">
+    <span class="close-btn">&times;</span>
+    <img id="lightboxImage" src="" alt="">
+</div>
+
 <div id="chatContainer"
-     class="container mx-auto mt-10 flex gap-6"
+     class="container mx-auto mt-4 md:mt-10 px-2 md:px-4 flex flex-col md:flex-row gap-4 md:gap-6"
      th:data-userid="${user.id}">
 
-
-
-    <!-- Connections -->
-    <div class="w-1/3 bg-gray-800 p-4 rounded-lg shadow-lg">
-        <h4 class="text-xl font-bold mb-2">Connections</h4>
-        <ul id="connectionList" class="space-y-2">
+    <!-- Connections Panel -->
+    <div id="connectionsPanel" class="w-full md:w-1/3 bg-gray-800 p-3 md:p-4 rounded-lg shadow-lg flex flex-col">
+        <div class="flex justify-between items-center mb-2">
+            <h4 class="text-lg md:text-xl font-bold">Connections</h4>
+            <button onclick="toggleConnections()" class="mobile-only text-2xl">&times;</button>
+        </div>
+        <ul id="connectionList" class="space-y-2 flex-1">
             <li th:each="conn : ${connections}"
                 th:id="'conn-' + ${conn.id}"
                 th:data-userid="${conn.id}"
                 th:data-fullname="${conn.fullName}"
                 onclick="selectUser(this)"
-                class="cursor-pointer p-2 rounded hover:bg-gray-700">
+                class="cursor-pointer p-3 rounded hover:bg-gray-700 min-h-[44px] flex items-center">
                 <span th:text="${conn.fullName}"></span>
             </li>
         </ul>
     </div>
 
-
-
     <!-- Chat Window -->
-    <div class="w-2/3 bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col">
-        <h4 id="chatWith" class="text-xl font-bold mb-2">
-            Select a user to start chatting
-        </h4>
-
-        <div id="chat-box"
-             class="flex-1 overflow-y-auto p-3 mb-3 bg-gray-900 rounded border border-gray-700">
+    <div class="w-full md:w-2/3 bg-gray-800 p-3 md:p-4 rounded-lg shadow-lg flex flex-col">
+        <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <button onclick="toggleConnections()" class="mobile-only text-xl bg-gray-700 px-3 py-2 rounded min-h-[44px]">☰</button>
+                <h4 id="chatTitle" class="text-lg md:text-xl font-bold">Select a user</h4>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="clearReply()" id="clearReplyBtn" class="hidden text-xl min-h-[44px] min-w-[44px]" title="Clear reply">✖️</button>
+                <button onclick="refreshChat()" title="Refresh" class="text-xl min-h-[44px] min-w-[44px]">🔄</button>
+                <button onclick="deleteChat()" title="Delete chat" class="text-xl min-h-[44px] min-w-[44px]">🗑️</button>
+            </div>
         </div>
 
+        <div id="chat-box"
+             class="flex-1 overflow-y-auto p-2 md:p-3 mb-3 bg-gray-900 rounded border border-gray-700">
+        </div>
 
-        <!-- Message + File Input -->
-        <div class="flex gap-2 items-center">
-            <input type="file" id="fileInput" class="text-sm text-gray-300">
-            <input type="text" id="messageInput" placeholder="Type message"
-                   class="flex-1 p-2 rounded bg-gray-700 text-gray-100 outline-none">
-
-            <button onclick="sendMessage()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">
-                Send
-            </button>
-
-            <button onclick="sendFile()"
-                    class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded">
-                Send File
-            </button>
+        <!-- Mobile-friendly input area -->
+        <div class="flex flex-col gap-2">
+            <div class="flex gap-2 items-center">
+                <input type="file" id="fileInput" class="flex-1 text-xs md:text-sm text-gray-300">
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="messageInput" placeholder="Type message"
+                       class="flex-1 p-3 rounded bg-gray-700 text-gray-100 outline-none min-h-[44px]">
+                <button onclick="sendMessage()"
+                        class="action-button bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded min-h-[44px]">
+                    Send
+                </button>
+                <button onclick="sendFile()"
+                        class="action-button bg-purple-600 hover:bg-purple-500 text-white px-3 md:px-4 py-2 rounded min-h-[44px]">
+                    Send File
+                </button>
+            </div>
         </div>
     </div>
 </div>
-
-
 
 <script>
     let stompClient = null;
     let selectedUserId = null;
     let selectedUserName = '';
     let loggedInUserId = parseInt(document.getElementById("chatContainer").dataset.userid);
+    let replyContext = null;
+
+    const messageMap = new Map();
+
+    function toggleConnections() {
+        if (window.innerWidth < 768) {
+            const panel = document.getElementById('connectionsPanel');
+            const overlay = document.getElementById('overlay');
+            panel.classList.toggle('show');
+            overlay.classList.toggle('show');
+        }
+    }
+
+    function openLightbox(imageUrl) {
+        document.getElementById('lightboxImage').src = imageUrl;
+        document.getElementById('imageLightbox').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        document.getElementById('imageLightbox').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
 
     function connect() {
         const socket = new SockJS('/ws-chat');
         stompClient = Stomp.over(socket);
 
         stompClient.connect({}, function () {
-
             stompClient.subscribe('/topic/messages', function (output) {
                 const msg = JSON.parse(output.body);
                 if (!selectedUserId) return;
@@ -99,13 +321,18 @@
         });
     }
 
-
     function selectUser(element) {
         selectedUserId = parseInt(element.dataset.userid);
         selectedUserName = element.dataset.fullname;
 
-        document.getElementById("chatWith").innerText = "Chatting with " + selectedUserName;
+        document.getElementById("chatTitle").innerText = selectedUserName;
         document.getElementById("chat-box").innerHTML = "";
+        messageMap.clear();
+        clearReply();
+
+        if (window.innerWidth < 768) {
+            toggleConnections();
+        }
 
         fetch(`/api/chat/history?user1=${loggedInUserId}&user2=${selectedUserId}`)
             .then(res => res.json())
@@ -115,84 +342,269 @@
             }));
     }
 
-
     function sendMessage() {
         if (!selectedUserId) { alert("Select a user first!"); return; }
         const content = document.getElementById('messageInput').value.trim();
         if (!content) return;
 
-        const message = { senderId: loggedInUserId, receiverId: selectedUserId, content };
+        const message = {
+            senderId: loggedInUserId,
+            receiverId: selectedUserId,
+            content,
+            replyPreview: replyContext?.content || replyContext?.fileName || replyContext?.name,
+            replyToMessageId: replyContext?.id
+        };
+
         stompClient.send("/app/chat.send", {}, JSON.stringify(message));
         document.getElementById('messageInput').value = '';
+        clearReply();
     }
-
 
     function sendFile() {
         const fileInput = document.getElementById("fileInput");
         const file = fileInput.files[0];
         if (!file) { alert("Select a file"); return; }
 
-
         const formData = new FormData();
         formData.append("file", file);
         formData.append("senderId", loggedInUserId);
         formData.append("receiverId", selectedUserId);
+        if (replyContext?.id) {
+            formData.append("replyToMessageId", replyContext.id);
+            formData.append("replyPreview", replyContext.content || replyContext.fileName || replyContext.name || '');
+        }
 
         fetch("/api/chat/upload", { method: "POST", body: formData })
             .then(res => res.json())
             .then(attachment => {
-                // Send via STOMP so both users see it immediately
                 stompClient.send("/app/chat.send-file", {}, JSON.stringify(attachment));
             })
             .catch(err => console.error(err));
 
         fileInput.value = "";
+        clearReply();
     }
 
+    function formatTime(ts) {
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
 
 
     function showMessage(msg) {
         const chatBox = document.getElementById("chat-box");
         const line = document.createElement("div");
-        line.classList.add("mb-2", "p-2", "rounded");
+        line.classList.add("mb-3", "p-3", "rounded", "chat-message");
+        line.id = "msg-" + msg.id;
+
+        messageMap.set(msg.id, line);
+
+        const replyHtml = msg.replyPreview && msg.replyToMessageId
+            ? `<div class="reply-preview" onclick="scrollToMessage(${msg.replyToMessageId})">↩️ ${msg.replyPreview}</div>`
+            : '';
+
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = replyHtml + `<span>${msg.content}</span><div class="text-xs opacity-50 mt-1">${formatTime(msg.timestamp)}</div>`;
+
+        const controlsDiv = document.createElement("div");
+        controlsDiv.classList.add("chat-controls");
+
+        const replyBtn = document.createElement("span");
+        replyBtn.textContent = "↩️";
+        replyBtn.title = "Reply";
+        replyBtn.classList.add("cursor-pointer");
+        replyBtn.addEventListener("click", () => setReply(msg));
+        controlsDiv.appendChild(replyBtn);
 
         if (msg.senderId === loggedInUserId) {
             line.classList.add("text-right", "bg-blue-600", "text-white");
-            line.innerHTML = `<strong>You:</strong> ${msg.content}`;
-            line.style.marginLeft = "30%";
+            const deleteBtn = document.createElement("span");
+            deleteBtn.textContent = "❌";
+            deleteBtn.title = "Delete";
+            deleteBtn.classList.add("cursor-pointer");
+            deleteBtn.addEventListener("click", () => deleteMessage(msg.id));
+            controlsDiv.appendChild(deleteBtn);
+            line.style.marginLeft = window.innerWidth >= 768 ? "30%" : "5%";
         } else {
             line.classList.add("text-left", "bg-gray-700");
-            line.innerHTML = `<strong>${selectedUserName}:</strong> ${msg.content}`;
-            line.style.marginRight = "30%";
+            line.style.marginRight = window.innerWidth >= 768 ? "30%" : "5%";
         }
 
+        contentDiv.appendChild(controlsDiv);
+        line.appendChild(contentDiv);
         chatBox.appendChild(line);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
-
 
     function showAttachment(file) {
         const chatBox = document.getElementById("chat-box");
         const line = document.createElement("div");
-        line.classList.add("mb-2", "p-2", "rounded");
+        line.classList.add("mb-3", "p-3", "rounded", "chat-message");
+        line.id = "file-" + file.id;
 
-        const link = `<a href="${file.fileUrl}" download class="underline text-blue-300">
-                    📎 ${file.fileName}
-                  </a>`;
+        messageMap.set(file.id, line);
+
+        const replyToId = file.replyToMessageId || file.replyToAttachmentId;
+        const replyHtml = file.replyPreview && replyToId
+            ? `<div class="reply-preview" onclick="scrollToMessage(${replyToId})">↩️ ${file.replyPreview}</div>`
+            : '';
+
+        const displayName = file.fileName || file.name || 'File';
+        const fileUrl = file.fileUrl || '';
+
+        const extension = displayName.split('.').pop().toLowerCase();
+        const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+        const videoTypes = ['mp4', 'webm', 'ogg', 'mov'];
+
+        let mediaContent = '';
+
+        if (imageTypes.includes(extension)) {
+            mediaContent = `
+            <div class="mb-2">
+                <img src="${fileUrl}" alt="${displayName}"
+                     class="max-w-full rounded"
+                     style="max-height: 300px; cursor: pointer;"
+                     onclick="openLightbox('${fileUrl}'); event.stopPropagation();">
+            </div>
+            <a href="${fileUrl}" download class="text-xs underline text-blue-300 break-all">📎 ${displayName}</a>
+        `;
+        } else if (videoTypes.includes(extension)) {
+            mediaContent = `
+            <div class="mb-2">
+                <video controls class="max-w-full rounded" style="max-height: 300px;">
+                    <source src="${fileUrl}" type="video/${extension}">
+                    Your browser doesn't support video playback.
+                </video>
+            </div>
+            <a href="${fileUrl}" download class="text-xs underline text-blue-300 break-all">📎 ${displayName}</a>
+        `;
+        } else {
+            mediaContent = `<a href="${fileUrl}" download class="underline text-blue-300 break-all">📎 ${displayName}</a>`;
+        }
+
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = replyHtml + mediaContent + `<div class="text-xs opacity-50 mt-1">${formatTime(file.timestamp)}</div>`;
+
+        const controlsDiv = document.createElement("div");
+        controlsDiv.classList.add("chat-controls");
+
+        const replyBtn = document.createElement("span");
+        replyBtn.textContent = "↩️";
+        replyBtn.title = "Reply";
+        replyBtn.classList.add("cursor-pointer");
+        replyBtn.addEventListener("click", () => setReply(file));
+        controlsDiv.appendChild(replyBtn);
 
         if (file.senderId === loggedInUserId) {
             line.classList.add("text-right", "bg-purple-600", "text-white");
-            line.innerHTML = `<strong>You:</strong> ${link}`;
-            line.style.marginLeft = "30%";
+            const deleteBtn = document.createElement("span");
+            deleteBtn.textContent = "❌";
+            deleteBtn.title = "Delete";
+            deleteBtn.classList.add("cursor-pointer");
+            deleteBtn.addEventListener("click", () => deleteAttachment(file.id));
+            controlsDiv.appendChild(deleteBtn);
+            line.style.marginLeft = window.innerWidth >= 768 ? "30%" : "5%";
         } else {
             line.classList.add("text-left", "bg-gray-700");
-            line.innerHTML = `<strong>${selectedUserName}:</strong> ${link}`;
-            line.style.marginRight = "30%";
+            line.style.marginRight = window.innerWidth >= 768 ? "30%" : "5%";
         }
 
+        contentDiv.appendChild(controlsDiv);
+        line.appendChild(contentDiv);
         chatBox.appendChild(line);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    function scrollToMessage(id) {
+        if (!id) return;
+
+        const element = messageMap.get(id);
+        if (element) {
+            element.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+            element.classList.add('message-highlight');
+
+            setTimeout(() => {
+                element.classList.remove('message-highlight');
+            }, 1500);
+        }
+    }
+
+    function setReply(item) {
+        replyContext = item;
+        const preview = item.content || item.fileName || item.name || '...';
+        document.getElementById("messageInput").placeholder = "↩️ Replying to: " + preview;
+        document.getElementById("clearReplyBtn").classList.remove("hidden");
+    }
+
+    function clearReply() {
+        replyContext = null;
+        document.getElementById("messageInput").placeholder = "Type message";
+        document.getElementById("clearReplyBtn").classList.add("hidden");
+    }
+
+    function refreshChat() {
+        if (!selectedUserId) return;
+        selectUser(document.querySelector(`[data-userid='${selectedUserId}']`));
+    }
+
+    function deleteMessage(id) {
+        if (!confirm("Delete this message?")) return;
+
+        fetch(`/api/chat/message/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed");
+                refreshChat();
+            })
+            .catch(err => console.error(err));
+    }
+
+    function deleteAttachment(id) {
+        if (!confirm("Delete this file?")) return;
+
+        fetch(`/api/chat/attachment/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed");
+                refreshChat();
+            })
+            .catch(err => console.error(err));
+    }
+
+    function deleteChat() {
+        if (!selectedUserId) { alert("Select a user first!"); return; }
+
+        if (!confirm(`Delete entire chat with ${selectedUserName}?`)) return;
+
+        fetch(`/api/chat/delete?user1=${loggedInUserId}&user2=${selectedUserId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed");
+                document.getElementById("chat-box").innerHTML = "";
+                messageMap.clear();
+            })
+            .catch(err => console.error(err));
+    }
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768) {
+            document.getElementById('connectionsPanel').classList.remove('show');
+            document.getElementById('overlay').classList.remove('show');
+        }
+    });
 
     connect();
 </script>

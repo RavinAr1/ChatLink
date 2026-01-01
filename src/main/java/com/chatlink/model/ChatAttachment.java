@@ -2,7 +2,8 @@ package com.chatlink.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 
 @Data
 @Entity
@@ -13,21 +14,14 @@ public class ChatAttachment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private Long senderId;
-
-    @Column(name = "receiver_id", nullable = false)
     private Long receiverId;
-
-    @Column(nullable = false)
     private String fileName;
+    private String fileType;
+    private String fileUrl;
+    private Instant timestamp;
 
-    @Column(nullable = false)
-    private String fileType;   // IMAGE, FILE, etc.
 
-    @Column(nullable = false)
-    private String fileUrl;    // Path to stored file
-
-    @Column(nullable = false)
-    private LocalDateTime timestamp;
+    private Long replyToAttachmentId;
+    private String replyPreview; // store fileName
 }

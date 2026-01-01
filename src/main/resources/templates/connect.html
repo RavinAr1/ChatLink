@@ -1,9 +1,14 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Connect | ChatLink</title>
+    <link rel="icon" type="image/png" href="/images/logo.png">
+
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+
     <link rel="stylesheet" href="/css/output.css">
 </head>
 
@@ -13,42 +18,56 @@
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <!-- PAGE CONTENT -->
-<div class="flex flex-col items-center p-6 flex-grow">
+<div class="flex flex-col items-center px-4 py-6 flex-grow">
 
-    <h2 class="text-2xl font-bold mb-4">Connect</h2>
-
-
+    <h2 class="text-xl sm:text-2xl font-bold mb-4">
+        Connect
+    </h2>
 
     <form th:action="@{/connect}" method="post"
-          class="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md space-y-4">
+          class="bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg w-full max-w-md space-y-4">
+
+        <!-- Notifications -->
+        <div th:if="${success}" class="bg-green-700 p-2 rounded text-white text-sm mb-2" th:text="${success}"></div>
+        <div th:if="${error}" class="bg-red-700 p-2 rounded text-white text-sm mb-2" th:text="${error}"></div>
 
         <div>
-            <label class="block mb-1">Enter Unique Code:</label>
-            <input type="text" name="code" id="codeInput"
-                   class="w-full p-2 rounded bg-gray-700 text-gray-100">
+            <label class="block mb-1 text-sm">
+                Enter Unique Code:
+            </label>
+            <input type="text"
+                   name="code"
+                   id="codeInput"
+                   class="w-full p-2 rounded bg-gray-700 text-gray-100 focus:outline-none focus:ring focus:ring-blue-500">
         </div>
 
         <div>
-            <label class="block mb-1">Upload QR Image:</label>
-            <input type="file" id="qrUpload" accept="image/*" class="text-gray-100">
+            <label class="block mb-1 text-sm">
+                Upload QR Image:
+            </label>
+            <input type="file"
+                   id="qrUpload"
+                   accept="image/*"
+                   class="w-full text-sm text-gray-100">
         </div>
 
         <div>
             <button type="button"
                     onclick="startScanner()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">
+                    class="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-semibold">
                 Scan using Camera
             </button>
         </div>
 
-        <div id="reader" class="w-full mt-4"></div>
+        <!-- QR READER -->
+        <div id="reader"
+             class="w-full mt-4 rounded overflow-hidden"></div>
 
         <button type="submit"
-                class="w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded">
+                class="w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded font-semibold">
             Send Request
         </button>
     </form>
-
 
 </div>
 
@@ -82,6 +101,8 @@
         reader.readAsDataURL(file);
     });
 
+
+
     function startScanner() {
         document.getElementById("reader").style.display = "block";
         const html5Qr = new Html5Qrcode("reader");
@@ -94,9 +115,9 @@
                 html5Qr.stop();
                 alert("QR scanned successfully!");
                 document.getElementById("reader").style.display = "none";
-
+            }
+        );
     }
-        )}
 </script>
 
 </body>

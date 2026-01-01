@@ -12,14 +12,13 @@ public class ConnectionRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long senderId;
-    private Long receiverId;
-
     private String status;
 
-    @Transient
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_id")     // Foreign key to the User who sent the request
     private User sender;
 
-    @Transient
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receiver_id")   //  Foreign key to the User who received the request
     private User receiver;
 }

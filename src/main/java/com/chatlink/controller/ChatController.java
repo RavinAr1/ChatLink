@@ -9,6 +9,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Controller
@@ -16,25 +18,27 @@ import java.time.LocalDateTime;
 public class ChatController {
 
     private final ChatService chatService;
-    private final ChatAttachmentService chatAttachmentService;   // Service for file attachments
+    private final ChatAttachmentService chatAttachmentService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    @MessageMapping("/chat.send")
+
+    @MessageMapping("/chat.send")   // for sending messages
     public void sendMessage(ChatMessage message) {
-        message.setTimestamp(LocalDateTime.now());
-        chatService.saveMessage(message);                         // Persist chat message
+        message.setTimestamp(Instant.now());
+        // Save replyToMessageId if any
+        chatService.saveMessage(message);
         messagingTemplate.convertAndSend("/topic/messages", message);
     }
 
 
-    @MessageMapping("/chat.send-file")
+    @MessageMapping("/chat.send-file")  //  for sending files
     public void sendFile(ChatAttachment attachment) {
-        attachment.setTimestamp(LocalDateTime.now());
-        chatAttachmentService.saveAttachment(attachment);         // Persist attachment
+        attachment.setTimestamp(Instant.now());
+        chatAttachmentService.saveAttachment(attachment);
         messagingTemplate.convertAndSend("/topic/files", attachment);
     }
 
 
-    //TODO: Add methods for deleting chat messages and entire chats.
+
 
 }

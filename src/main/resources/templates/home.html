@@ -3,40 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <title>ChatLink - Home</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="icon" type="image/png" href="/images/logo.png">
+
     <link rel="stylesheet" href="/css/output.css">
 </head>
+
+
 <body class="bg-gray-900 text-gray-100 min-h-screen">
 
 <div th:replace="fragments/navbar :: navbar"></div>
 
+<div class="container mx-auto mt-6 px-4 space-y-6">
 
-<div class="container mx-auto mt-10 space-y-6">
 
-    <div class="bg-gray-800 rounded-lg shadow-lg p-6">
-        <h2 class="text-3xl font-bold mb-4">Welcome to ChatLink</h2>
+    <!-- Welcome Card -->
+    <div class="bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
+        <h2 class="text-2xl sm:text-3xl font-bold mb-4 text-center">Welcome to ChatLink</h2>
 
-        <div th:if="${user != null}">
-            <h4 class="mb-2">Hello, <span th:text="${user.fullName}"></span> 👋</h4>
+
+        <div th:if="${user != null}" class="text-center sm:text-left">
+            <h4 class="mb-2 text-lg sm:text-xl">Hello, <span th:text="${user.fullName}"></span> 👋</h4>
             <p class="mb-4"><strong>Your Unique Code:</strong> <span th:text="${user.uniqueCode}"></span></p>
 
-            <div class="space-x-2">
-                <a href="/connect" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md">Connect</a>
-                <a href="/requests" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md">Requests</a>
-                <a href="/chat" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md">Open Chat</a>
+            <div class="flex flex-col sm:flex-row justify-center sm:justify-start gap-2">
+                <a href="/connect" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-center">Connect</a>
+                <a href="/requests" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-center">Requests</a>
+                <a href="/chat" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md text-center">Open Chat</a>
             </div>
         </div>
 
-        <div th:if="${user == null}" class="text-red-400">
+
+        <div th:if="${user == null}" class="text-red-400 text-center">
             <p>User data not found. Please login again.</p>
             <a href="/login" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md mt-2 inline-block">Back to Login</a>
         </div>
     </div>
 
-    <div class="bg-gray-800 rounded-lg shadow-lg p-6">
-        <h5 class="mb-2">Scan Your QR to Share</h5>
-        <img id="qrCode" src="/user/qr" alt="Your QR Code" class="w-48 cursor-pointer rounded-lg shadow-lg"
+
+    <!-- QR Code Card -->
+    <div class="bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 text-center">
+        <h5 class="mb-2 text-lg sm:text-xl">Scan Your QR to Share</h5>
+        <img id="qrCode" src="/user/qr" alt="Your QR Code"
+             class="w-40 sm:w-48 mx-auto cursor-pointer rounded-lg shadow-lg"
              onclick="expandQR()">
+
         <a id="downloadQR" class="inline-block mt-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded" download="ChatLink-QR.png">Download QR</a>
     </div>
 

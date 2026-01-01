@@ -28,7 +28,17 @@ public class SecurityConfig {
                                 "/images/**",
                                 "/verify/**",
                                 "/forgot-password",
-                                "/reset-password/**"
+                                "/reset-password/**",
+
+                                "/api/chat/upload",
+                                "/api/chat/download/**",
+                                "/api/chat/history",
+                                "/api/chat/message/**",
+                                "/api/chat/attachment/**",
+                                "/api/chat/delete",
+                                "/upload"
+
+
                         ).permitAll()
                         .anyRequest().access((authentication, context) -> {
                             Object loggedUser = context.getRequest()

@@ -16,7 +16,7 @@ public class ChatPageController {
 
     private final ConnectionService connectionService; // Service to fetch user connections
 
-    @GetMapping("/chat")
+    @GetMapping("/chat")    // Mapping for chat page
     public String openChatPage(HttpSession session, Model model) {
 
         User user = (User) session.getAttribute("loggedUser");
@@ -24,7 +24,7 @@ public class ChatPageController {
             return "redirect:/login";
         }
 
-        List<User> connections = connectionService.getUserConnections(user.getId());
+        List<User> connections = connectionService.getUserConnections(user.getId());    // Fetch user connections
 
         model.addAttribute("user", user);
         model.addAttribute("connections", connections);

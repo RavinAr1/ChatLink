@@ -26,36 +26,61 @@ public class ConnectionServiceImpl implements ConnectionService {
 
     @Override
     public ConnectionRequest sendRequest(Long senderId, Long receiverId) {
-        if (!userRepo.existsById(receiverId)) throw new RuntimeException("User does not exist!");
+        User sender = userRepo.findById(senderId)
+                .orElseThrow(() -> new RuntimeException("Sender not found"));
+        User receiver = userRepo.findById(receiverId)
+                .orElseThrow(() -> new RuntimeException("Receiver not found"));
+
+        // Check if request already exists
+        boolean alreadySent = requestRepo.findAll().stream()
+                .anyMatch(req ->
+                        req.getSender().getId().equals(senderId) &&
+                                req.getReceiver().getId().equals(receiverId) &&
+                                "PENDING".equals(req.getStatus())
+                );
+
+        if (alreadySent) return null;
 
         ConnectionRequest req = new ConnectionRequest();
-        req.setSenderId(senderId);
-        req.setReceiverId(receiverId);
+        req.setSender(sender);
+        req.setReceiver(receiver);
         req.setStatus("PENDING");
 
-        return requestRepo.save(req); // Persist connection request
+        return requestRepo.save(req);
     }
 
-    @Override
-    public List<ConnectionRequest> getPendingRequests(Long receiverId) {
-        return requestRepo.findByReceiverIdAndStatus(receiverId, "PENDING"); // Fetch pending requests
-    }
 
     @Override
+    /* Fetch pending connection requests for a user */
+    public List<ConnectionRequest> getPendingRequests(Long userId) {
+        // Fetch requests where receiver is user and status is PENDING
+        List<ConnectionRequest> requests = requestRepo.findByReceiverIdAndStatus(userId, "PENDING");
+        return requests;
+    }
+
+
+    @Override
+    /* Accept a connection request */
     public void acceptRequest(Long requestId) {
-        ConnectionRequest req = requestRepo.findById(requestId).orElseThrow();
+        ConnectionRequest req = requestRepo.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found!"));
         req.setStatus("ACCEPTED");
-        requestRepo.save(req); // Update status to ACCEPTED
+        requestRepo.save(req);
     }
 
     @Override
+    /* Reject a connection request */
     public void rejectRequest(Long requestId) {
-        ConnectionRequest req = requestRepo.findById(requestId).orElseThrow();
+        ConnectionRequest req = requestRepo.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found!"));
         req.setStatus("REJECTED");
-        requestRepo.save(req); // Update status to REJECTED
+        requestRepo.save(req);
     }
 
+
+
     @Override
+    /* Get all accepted connections for a user */
     public List<User> getUserConnections(Long userId) {
         List<ConnectionRequest> requests = requestRepo.findBySenderIdAndStatusOrReceiverIdAndStatus(
                 userId, "ACCEPTED",
@@ -63,19 +88,23 @@ public class ConnectionServiceImpl implements ConnectionService {
         );
 
         return requests.stream()
-                .map(req -> req.getSenderId().equals(userId) ?
-                        userRepo.findById(req.getReceiverId()).orElse(null) :
-                        userRepo.findById(req.getSenderId()).orElse(null))
+                .map(req -> req.getSender().getId().equals(userId) ?
+                        req.getReceiver() : req.getSender())
                 .filter(u -> u != null)
-                .distinct() // Remove duplicates
-                .collect(Collectors.toList()); // Return list of connected users
+                .distinct()
+                .collect(Collectors.toList());
     }
 
+
+
+/*
+    Generate a QR code image from the given text
+ */
     public BufferedImage generateQRCode(String text, int width, int height) {
         try {
             QRCodeWriter qrCodeWriter = new QRCodeWriter();
             BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, width, height);
-            return MatrixToImageWriter.toBufferedImage(bitMatrix); // Generate QR code image
+            return MatrixToImageWriter.toBufferedImage(bitMatrix);
         } catch (WriterException e) {
             throw new RuntimeException("Could not generate QR Code", e);
         }

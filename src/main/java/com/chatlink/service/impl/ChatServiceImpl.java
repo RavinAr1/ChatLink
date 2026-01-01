@@ -1,15 +1,13 @@
 package com.chatlink.service.impl;
 
 import com.chatlink.model.ChatMessage;
-import com.chatlink.model.ChatAttachment;
 import com.chatlink.repository.ChatMessageRepository;
-import com.chatlink.service.ChatService;
 import com.chatlink.service.ChatAttachmentService;
+import com.chatlink.service.ChatService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -19,28 +17,28 @@ public class ChatServiceImpl implements ChatService {
     private final ChatMessageRepository chatRepo;
     private final ChatAttachmentService attachmentService;
 
+
     @Override
-    public ChatMessage saveMessage(ChatMessage message) {
-        return chatRepo.save(message); // Persist chat message
+    public ChatMessage saveMessage(ChatMessage message) {       // save message to the database
+        return chatRepo.save(message);
     }
 
     @Override
-    public List<ChatMessage> getChatHistory(Long user1, Long user2) {
-        return chatRepo.findChatHistory(user1, user2); // Fetch messages between users
+    public List<ChatMessage> getChatHistory(Long user1, Long user2) {       // retrieve chat history between two users
+        return chatRepo.findChatHistory(user1, user2);
     }
 
-//    @Override
-//    public List<Object> getFullChatHistory(Long user1, Long user2) {
-//        List<Object> combined = new ArrayList<>();
-//
-//        combined.addAll(chatRepo.findChatHistory(user1, user2));
-//        combined.addAll(attachmentService.getAttachments(user1, user2)); // Add attachments
-//
-//        combined.sort(Comparator.comparing(o -> {
-//            if (o instanceof ChatMessage) return ((ChatMessage) o).getTimestamp();
-//            else return ((ChatAttachment) o).getTimestamp();
-//        })); // Sort everything by timestamp
-//
-//        return combined;
-//    }
+    @Override
+    @Transactional
+    public void deleteMessage(Long messageId) {     // delete a specific message by its ID
+        chatRepo.deleteById(messageId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteChat(Long user1, Long user2) {        // delete entire chat history between two users
+        chatRepo.deleteChatBetween(user1, user2);
+        attachmentService.deleteChatAttachments(user1, user2);
+    }
+
 }
