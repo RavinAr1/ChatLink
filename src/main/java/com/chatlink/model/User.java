@@ -27,9 +27,11 @@ public class User {
     @Column(unique = true, nullable = false)
     private String uniqueCode;
 
+    @Builder.Default
     private int connectionsCount = 0;
 
     // Email verification
+    @Builder.Default
     private boolean verified = false;
 
     @Column(unique = true)
